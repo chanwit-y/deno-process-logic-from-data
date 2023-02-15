@@ -19,7 +19,7 @@ enum DataType {
 type KeyValue = { [key: string]: any };
 
 type AssignType = {
-  name: string;
+  key: string;
   dataType: DataType;
   default: any;
 };
@@ -42,26 +42,36 @@ type Flow = {
 };
 
 const forEachProcess = (
+  refKey: string,
   data: KeyValue,
   flow: Flow[],
-  variable: KeyValue
+  variables: KeyValue
 ): KeyValue => {
-  Object.entries(data).map((v) => {
-    console.log(v);
+  data.map((d, i) => {
+    Object.entries(d).map((v) => {
+      const [key, val] = v;
+      variables[`${refKey}${i}${key}`] = val;
+      runFlow(flow, variables, `${refKey}${i}`);
+    });
   });
 
-  return variable;
+  return variables;
 };
 
-const runFlow = (flow: Flow[], variables: KeyValue): KeyValue => {
+const runFlow = (
+  flow: Flow[],
+  variables: KeyValue,
+  refKey: string = ""
+): KeyValue => {
   flow.map((f) => {
     switch (f.type) {
       case FlowType.assign: {
-        variables[f.assign?.name ?? ""] = f.assign?.default;
+        variables[`${refKey}${f.assign?.key ?? ""}`] = f.assign?.default;
         break;
       }
       case FlowType.loop: {
         variables = forEachProcess(
+          f.loop?.key ?? "",
           variables[f.loop?.key ?? ""],
           f.loop?.flow ?? [],
           variables
@@ -69,7 +79,7 @@ const runFlow = (flow: Flow[], variables: KeyValue): KeyValue => {
         break;
       }
       case FlowType.log: {
-        console.log(f.log?.message, variables[f.log?.key ?? ""]);
+        console.log(f.log?.message, variables[`${refKey}${f.log?.key ?? ""}`]);
         break;
       }
     }
@@ -83,15 +93,15 @@ const main = () => {
     {
       type: FlowType.assign,
       assign: {
-        name: "arr1",
+        key: "arr1",
         dataType: DataType.jsonObjectArray,
         default: [
           {
-            code: "1",
+            code: 1,
             name: "n-1",
           },
           {
-            code: "2",
+            code: 2,
             name: "n-2",
           },
         ],
@@ -101,12 +111,28 @@ const main = () => {
       type: FlowType.loop,
       loop: {
         key: "arr1",
-        flow: [],
+        flow: [
+		{
+			type: FlowType.log,
+			log: {
+				key: "code",
+				message: "code"
+			},
+		},
+		{
+			type: FlowType.log,
+			log: {
+				key: "name",
+				message: "name"
+			},
+		}
+	],
       },
     },
   ];
   let variables: KeyValue = {};
   variables = runFlow(flows, variables);
+  console.log(variables)
 };
 
 main();
