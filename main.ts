@@ -1,7 +1,7 @@
 enum FlowType {
   assign,
   operator,
-  if,
+  keyEqualValue,
   loop,
   query,
   transfrom,
@@ -24,7 +24,11 @@ type AssignType = {
   default: any;
 };
 
-type IfType = {};
+type KeyEqualValueType = {
+  key: string;
+  value: any;
+  flow: Flow[];
+};
 type LoopType = {
   key: string;
   flow: Flow[];
@@ -36,9 +40,16 @@ type LogType = {
 type Flow = {
   type: FlowType;
   assign?: AssignType;
-  if?: IfType;
+  kev?: KeyEqualValueType;
   loop?: LoopType;
   log?: LogType;
+};
+
+const keyEqualValueProcess = (kek: KeyEqualValueType, variables: KeyValue, refKey: string = "") => {
+  if (variables[`${refKey}${kek.key}`] === kek.value) {
+    variables = runFlow(kek.flow, variables, refKey);
+  }
+  return variables;
 };
 
 const forEachProcess = (
@@ -51,8 +62,8 @@ const forEachProcess = (
     Object.entries(d).map((v) => {
       const [key, val] = v;
       variables[`${refKey}${i}${key}`] = val;
-      runFlow(flow, variables, `${refKey}${i}`);
     });
+    runFlow(flow, variables, `${refKey}${i}`);
   });
 
   return variables;
@@ -82,6 +93,11 @@ const runFlow = (
         console.log(f.log?.message, variables[`${refKey}${f.log?.key ?? ""}`]);
         break;
       }
+      case FlowType.keyEqualValue: {
+        if (f.kev) {
+          variables = keyEqualValueProcess(f.kev, variables, refKey);
+        }
+      }
     }
   });
 
@@ -104,6 +120,10 @@ const main = () => {
             code: 2,
             name: "n-2",
           },
+          {
+            code: 3,
+            name: "n-2",
+          }
         ],
       },
     },
@@ -112,27 +132,41 @@ const main = () => {
       loop: {
         key: "arr1",
         flow: [
-		{
-			type: FlowType.log,
-			log: {
-				key: "code",
-				message: "code"
-			},
-		},
-		{
-			type: FlowType.log,
-			log: {
-				key: "name",
-				message: "name"
-			},
-		}
-	],
+          {
+            type: FlowType.log,
+            log: {
+              key: "code",
+              message: "code",
+            },
+          },
+          {
+            type: FlowType.log,
+            log: {
+              key: "name",
+              message: "name",
+            },
+          },
+          {
+            type: FlowType.keyEqualValue,
+            kev: {
+              key: "name",
+              value: "n-2",
+              flow: [{
+                type: FlowType.log,
+                log: {
+                  key: "name",
+                  message: "hi"
+                }
+              }]
+            }
+          },
+        ],
       },
     },
   ];
   let variables: KeyValue = {};
   variables = runFlow(flows, variables);
-  console.log(variables)
+  console.log(variables);
 };
 
 main();
